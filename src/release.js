@@ -1,6 +1,7 @@
 const { getInput } = require('@actions/core');
+const moment = require("moment");
 
-function release(execSync, setOutput, setFailed) {
+function release(execSync, setOutput, setFailed, currentTime) {
     const username = getInput("USERNAME", { require: true });
     const repositoryName = getInput("NAME", { require: true });
 
@@ -13,6 +14,12 @@ function release(execSync, setOutput, setFailed) {
         options += `-f ${getInput('DOCKERFILE', { require: false })} `;
     }
     const tags = translateDockerTag(githubReference);
+    if (usesOption("SNAPSHOT")) {
+        const snapshotTag = moment(currentTime).format('YYYYMMDDHHMM') + process.env[`GITHUB_SHA`].slice(0, 6);
+        tags.push(snapshotTag);
+        setOutput(`snapshot-tag`, `${snapshotTag}`);
+    }
+
     tags.forEach(tag => {
         options += `-t ${repositoryName}:${tag} `;
     });
@@ -35,7 +42,7 @@ function release(execSync, setOutput, setFailed) {
             .replace("/", "-");
 
         if (usesOption("TAG_SEMVER") && isSemver(githubReference)) {
-            if (githubReference.replace('refs/tags/', '').includes('-')){
+            if (githubReference.replace('refs/tags/', '').includes('-')) {
                 return [trimPrefix(branch, "v")];
             } else {
                 return splitSemver(trimPrefix(branch, "v"));

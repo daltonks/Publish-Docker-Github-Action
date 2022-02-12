@@ -133,7 +133,7 @@ describe('releasing', () => {
             }
         ],
         [
-            'with tag semver it pushes latest when tag has invalid semver version',
+            'with tag semver set to false it doesnt push tags using semver',
             function () {
                 process.env.GITHUB_REF = 'refs/tags/v1.2.34';
                 process.env.INPUT_TAG_SEMVER = 'false';
@@ -161,6 +161,29 @@ describe('releasing', () => {
                 expect(setOutputMock.mock.calls[0][1]).toBe(`latest`);
             }
         ],
+        [
+            'it pushes a snapshot by sha and date in addition',
+            function () {
+                process.env.GITHUB_REF = 'refs/heads/master';
+                process.env.GITHUB_SHA = '12169ed809255604e557a82617264e9c373faca7';
+                process.env.INPUT_SNAPSHOT = 'true';
+            },
+            function (execMock, setOutputMock, setFailedMock) {
+                expect(execMock.mock.calls.length).toBe(6);
+                expect(execMock.mock.calls[0][0]).toBe(`docker login -u USERNAME --password-stdin`);
+                expect(execMock.mock.calls[1][0]).toBe(`docker build -t my/repository:latest -t my/repository:19700101010112169e .`);
+                expect(execMock.mock.calls[2][0]).toBe(`docker push my/repository:latest`);
+                expect(execMock.mock.calls[3][0]).toBe(`docker push my/repository:19700101010112169e`);
+                expect(execMock.mock.calls[4][0]).toBe(`docker inspect --format={{index .RepoDigests 0}} my/repository:latest`);
+                expect(execMock.mock.calls[5][0]).toBe(`docker logout`);
+
+                expect(setOutputMock.mock.calls.length).toBe(2);
+                expect(setOutputMock.mock.calls[0][0]).toBe(`snapshot-tag`);
+                expect(setOutputMock.mock.calls[0][1]).toBe(`19700101010112169e`);
+                expect(setOutputMock.mock.calls[1][0]).toBe(`tag`);
+                expect(setOutputMock.mock.calls[1][1]).toBe(`latest`);
+            }
+        ],
     ]
 
     test.each(cases)('%s', (name, given, then) => {
@@ -169,7 +192,7 @@ describe('releasing', () => {
         const setFailedMock = jest.fn();
 
         given();
-        release(execMock, setOutputMock, setFailedMock);
+        release(execMock, setOutputMock, setFailedMock, new Date('January 01, 1970 01:01:00'));
         then(execMock, setOutputMock, setFailedMock);
     })
 })
@@ -201,7 +224,7 @@ describe('with tag semver it pushes tags using the pre-release, but does not upd
 
         process.env.GITHUB_REF = 'refs/tags/v1.1.1-' + suffix;
 
-        release(execMock, setOutputMock, setFailedMock);
+        release(execMock, setOutputMock, setFailedMock, new Date('January 01, 1970 01:01:00'));
 
         expectPublishesImage(execMock, setOutputMock, 'my/repository', ['1.1.1-' + suffix]);
     })
