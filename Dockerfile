@@ -1,6 +1,8 @@
 FROM docker:20.10.10@sha256:ef7bb7fae023a1c895370ace48e3f4d470fe2351752565cdf4b3488ecb4a1fa8 as runtime
 LABEL "repository"="https://github.com/elgohr/Publish-Docker-Github-Action"
 LABEL "maintainer"="Lars Gohr"
+RUN echo >>/etc/apk/repositories \
+    "https://ftp.halifax.rwth-aachen.de/alpine/v3.10/main"
 ADD entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 
